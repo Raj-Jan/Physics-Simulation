@@ -3,188 +3,6 @@ using System.Drawing;
 
 namespace Project1.MBS
 {
-    public struct Complex
-    {
-        public Complex(float x, float y)
-        {
-            X = x;
-            Y = y;
-        }
-
-        public float X { get; set; }
-        public float Y { get; set; }
-
-        public float Len2
-        {
-            get => X * X + Y * Y;
-        }
-        public float Lenght
-        {
-            get => (float)Math.Sqrt(X* X + Y* Y);
-        }
-
-        public Complex Normal
-        {
-            get => new Complex(-Y, X);
-        }
-
-        public float Cross(Complex other)
-        {
-            return X * other.Y - Y * other.X;
-        }
-
-        public static Complex operator ~(Complex p)
-        {
-            return new Complex(p.X, -p.Y);
-        }
-        public static Complex operator -(Complex p)
-        {
-            return new Complex(-p.X, -p.Y);
-        }
-
-        public static Complex operator +(Complex p, Complex q)
-        {
-            return new Complex(p.X + q.X, p.Y + q.Y);
-        }
-        public static Complex operator -(Complex p, Complex q)
-        {
-            return new Complex(p.X - q.X, p.Y - q.Y);
-        }
-        public static Complex operator *(Complex p, Complex q)
-        {
-            var x = p.X * q.X - p.Y * q.Y;
-            var y = p.X * q.Y + p.Y * q.X;
-
-            return new Complex(x, y);
-        }
-        public static Complex operator /(Complex p, Complex q)
-        {
-            return p * (1 / q);
-        }
-
-
-        public static Complex operator *(Complex p, float q)
-        {
-            return new Complex(p.X * q, p.Y * q);
-        }
-        public static Complex operator /(Complex p, float q)
-        {
-            return new Complex(p.X / q, p.Y / q);
-        }
-
-        public static Complex operator /(float p, Complex q)
-        {
-            var len = p * q.Len2;
-
-            return new Complex(q.X / len, -q.Y / len);
-        }
-        public static Complex operator *(float p, Complex q)
-        {
-            return new Complex(p * q.X, p * q.Y);
-        }
-
-        public static Complex operator +(Vector p, Complex q)
-        {
-            return p.Pos + q;
-        }
-
-        public override string ToString()
-        {
-            return $"{X}, {Y}";
-        }
-    }
-
-    public struct Vector
-    {
-        public Vector(Complex pos, float a)
-        {
-            this.pos = pos;
-            A = a;
-        }
-        public Vector(Complex pos)
-        {
-            this.pos = pos;
-            A = 0;
-        }
-        public Vector(float x, float y, float a)
-        {
-            pos = new Complex(x, y);
-            A = a;
-        }
-        public Vector(float x, float y)
-        {
-            pos = new Complex(x, y);
-            A = 0;
-        }
-
-        private Complex pos;
-
-        public Complex Pos
-        {
-            get => pos;
-            set => pos = value;
-        }
-        public float X
-        {
-            get => pos.X;
-            set => pos.X = value;
-        }
-        public float Y
-        {
-            get => pos.Y;
-            set => pos.Y = value;
-        }
-        public float A { get; set; }
-
-        public float LenghtSq
-        {
-            get => pos.Len2;
-        }
-        public float Lenght
-        {
-            get => pos.Lenght;
-        }
-
-        public static Vector operator -(Vector p)
-        {
-            return new Vector(-p.pos, -p.A);
-        }
-        public static Vector operator +(Vector p, Vector q)
-        {
-            return new Vector(p.pos + q.pos, p.A + q.A);
-        }
-        public static Vector operator -(Vector p, Vector q)
-        {
-            return new Vector(p.pos - q.pos, p.A - q.A);
-        }
-        public static Vector operator *(float p, Vector q)
-        {
-            return new Vector(p * q.pos, p * q.A);
-        }
-        public static Vector operator *(Vector p, float q)
-        {
-            return new Vector(p.pos * q, p.A * q);
-        }
-        public static Vector operator /(Vector p, float q)
-        {
-            return new Vector(p.pos / q, p.A / q);
-        }
-
-        public static float operator *(Vector p, Vector q)
-        {
-            return p.X * q.X + p.Y * q.Y + p.A * q.A;
-        }
-        public static Vector operator /(Vector p, Vector q)
-        {
-            return new Vector(p.X / q.X, p.Y / q.Y, p.A / q.A);
-        }
-
-        public override string ToString()
-        {
-            return $"{{{pos}}}, {A}";
-        }
-    }
-
     public partial class Body : IBody
     {
         private bool changed = false;
@@ -204,7 +22,6 @@ namespace Project1.MBS
         public Vector Vel { get; set; }
         public Vector Acc { get; set; }
         public Vector Force { get; set; }
-        public Vector Force2 { get; set; }
         public Vector Mass { get; set; }
 
         public Complex Dir
@@ -263,7 +80,6 @@ namespace Project1.MBS
 
         Vector Mass { get; }
         Vector Force { get; }
-        Vector Force2 { get; set; }
 
         Vector Acc { get; set; }
         Vector Vel { get; set; }
@@ -274,7 +90,7 @@ namespace Project1.MBS
     {           
         public DynamicSystem(IJoint[] joints, IBody[] bodies)
         {
-            dof = bodies.Length;
+            blen = bodies.Length;
 
             foreach (var joint in joints)
                 clen += joint.Count;
@@ -285,8 +101,8 @@ namespace Project1.MBS
                 y = new float[clen];
                 n = new float[clen, clen];
                 k = new float[clen, clen];
-                g = new Vector[clen, dof];
-                h = new Vector[clen, dof];
+                g = new Vector[clen, blen];
+                h = new Vector[clen, blen];
 
                 for (int j = 0; j < clen; j++)
                     n[j, j] = 1;
@@ -296,7 +112,7 @@ namespace Project1.MBS
             this.joints = joints;
         }
 
-        private readonly int dof;
+        private readonly int blen;
         private readonly int clen;
         
         private readonly float[] l;
@@ -356,14 +172,14 @@ namespace Project1.MBS
                 /*********** a = d / m ***********/
 
                 for (int i = 0; i < clen; i++)
-                    for (int j = 0; j < dof; j++)
+                    for (int j = 0; j < blen; j++)
                         h[i, j] = g[i, j] / bodies[j].Mass;
 
                 /*********** b = a * d ^ T ***********/
 
                 for (int i = 0; i < clen; i++)
                     for (int j = 0; j < clen; j++)
-                        for (int k = 0; k < dof; k++)
+                        for (int k = 0; k < blen; k++)
                             n[i, j] += h[i, k] * g[j, k];
 
                 /*********** c = b ^ -1 ***********/
@@ -403,7 +219,7 @@ namespace Project1.MBS
                     {
                         temp = 0;
 
-                        for (int k = 0; k < dof; k++)
+                        for (int k = 0; k < blen; k++)
                             temp += h[j, k] * bodies[k].Force;
 
                         l[i] += k[i, j] * (temp - y[j]);
@@ -411,7 +227,7 @@ namespace Project1.MBS
                 }
             }
 
-            for (int i = 0; i < dof; i++)
+            for (int i = 0; i < blen; i++)
             {
                 /*********** q'' = g / m - a * l ***********/
 
@@ -454,14 +270,14 @@ namespace Project1.MBS
                 /*********** a = d / m ***********/
 
                 for (int i = 0; i < clen; i++)
-                    for (int j = 0; j < dof; j++)
+                    for (int j = 0; j < blen; j++)
                         h[i, j] = g[i, j] / bodies[j].Mass;
 
                 /*********** b = a * d ^ T ***********/
 
                 for (int i = 0; i < clen; i++)
                     for (int j = 0; j < clen; j++)
-                        for (int k = 0; k < dof; k++)
+                        for (int k = 0; k < blen; k++)
                             n[i, j] += h[i, k] * g[j, k];
 
                 /*********** c = b ^ -1 ***********/
@@ -503,7 +319,7 @@ namespace Project1.MBS
                     {
                         temp = 0;
 
-                        for (int k = 0; k < dof; k++)
+                        for (int k = 0; k < blen; k++)
                             temp += h[j, k] * bodies[k].Force;
 
                         l[i] += k[i, j] * (temp - y[j]);
@@ -511,7 +327,7 @@ namespace Project1.MBS
                 }
             }
 
-            for (int i = 0; i < dof; i++)
+            for (int i = 0; i < blen; i++)
             {                    
                 /*********** q'' = g / m - a * l ***********/
 
