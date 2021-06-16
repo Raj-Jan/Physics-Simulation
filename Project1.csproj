@@ -40,10 +40,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Maths.cs" />
-    <Compile Include="MBS.cs" />
+    <Compile Include="Lagrange.cs" />
     <Compile Include="Program.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Naudet.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
